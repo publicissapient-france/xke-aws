@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  VPCCIDR:
+    Type: String
+    Default: '192.168.1.0/24'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCIDR
+      EnableDnsSupport: True
+      EnableDnsHostnames: True

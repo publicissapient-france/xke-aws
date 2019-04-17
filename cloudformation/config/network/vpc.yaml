@@ -1,0 +1,4 @@
+template_path: vpc.yaml
+stack_name: "{{environment}}-vpc"
+parameters:
+  VPCCIDR: '192.168.2.0/24'
