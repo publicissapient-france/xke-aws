@@ -10,6 +10,7 @@ sceptre --version
 # Exercice 1
 ## Lancer la stack VPC
 ```bash
+cd cloudformation
 AWS_PROFILE=<profile> sceptre launch -y network/vpc.yaml
 ```
 
@@ -30,16 +31,18 @@ AWS_PROFILE=<profile> sceptre launch -y network/vpc.yaml
 * Des VPC endpoints (Gateway VPC Endpoints) pour Dynamodb et S3 dans les routes  
 
 **Les ressources à créer**
+* AWS::EC2::VPC
 * AWS::EC2::InternetGateway
 * AWS::EC2::VPCGatewayAttachment
 * AWS::EC2::Subnet
-* AWS::EC2::NetworkAcl
 * AWS::EC2::SubnetNetworkAclAssociation
 * AWS::EC2::NetworkAclEntry
 * AWS::EC2::EIP
 * AWS::EC2::NatGateway
 * AWS::EC2::Route
+* AWS::EC2::SubnetRouteTableAssociation
+* AWS::EC2::VPCEndpoint
 
 **Les ressources optionnelles**
-* AWS::Route53::HostedZone
-* AWS::EC2::VPCEndpoint 
+* AWS::Route53::HostedZone 
+* AWS::EC2::NetworkAcl
