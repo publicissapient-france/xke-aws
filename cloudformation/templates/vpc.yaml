@@ -1,14 +1,61 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
+  Environment:
+    Description: Environment
+    Type: String
   VPCCIDR:
     Type: String
-    Default: '192.168.1.0/24'
+    Default: '10.0.0.0/16'
+    Description: 'CIDR of the VPC'
+
+Outputs:
+  VPCId:
+    Description: 'VPC.'
+    Value: !Ref VPC
 
 Resources:
+
   VPC:
-    Type: AWS::EC2::VPC
+    Type: 'AWS::EC2::VPC'
     Properties:
       CidrBlock: !Ref VPCCIDR
-      EnableDnsSupport: True
-      EnableDnsHostnames: True
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  SubnetAPublic:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-public-a'
+        - Key: Reach
+          Value: public
+
+
+
+  ##### PUBLIC #####
+  RouteTablePublic:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-public'
+
+
+#  RouteTablePublicInternetRoute:
+#    Type: 'AWS::EC2::Route'
+#    DependsOn: VPCGatewayAttachment # AWS::EC2::VPCGatewayAttachment, AWS::EC2::InternetGateway
+#    Properties:
+#      RouteTableId: !Ref RouteTablePublic
+#      DestinationCidrBlock: '0.0.0.0/0'
+#      GatewayId: !Ref InternetGateway

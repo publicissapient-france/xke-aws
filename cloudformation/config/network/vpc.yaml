@@ -1,4 +1,6 @@
 template_path: vpc.yaml
-stack_name: "{{environment}}-vpc"
+stack_name: "dev-vpc"
 parameters:
-  VPCCIDR: '192.168.2.0/24'
+  VPCCIDR: '10.0.0.0/16'
+  Environment: dev
+#  Domain: xke.local

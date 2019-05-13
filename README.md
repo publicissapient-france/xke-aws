@@ -17,8 +17,12 @@ AWS_PROFILE=<profile> sceptre launch -y network/vpc.yaml
 ![alt text](documentation/vpc.png "VPC")
 
 **Explications**
-* Un VPC réparti sur deux AZ
+* Un VPC réparti sur deux AZ : CIDR 192.168.1.0/24
 * Un subnet public et un subnet privé dans chaque AZ
+    * Public 1 : 192.168.1.0/26
+    * Public 2 : 192.168.1.64/26
+    * Private 1 : 192.168.1.128/26 
+    * Private 2 : 192.168.1.192/26
 * Une seule NAT Gateway dans un des subnets public
 * La route "0.0.0.0/0" des subnets privés pointent vers la NAT Gateway
 * La route "0.0.0.0/0" des subnets publics pointent vers l'Internet Gateway
