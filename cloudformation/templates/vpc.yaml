@@ -40,9 +40,59 @@ Resources:
         - Key: Reach
           Value: public
 
+  SubnetAPrivate:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-private-a'
+        - Key: Reach
+          Value: private
 
+  SubnetBPublic:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-public-b'
+        - Key: Reach
+          Value: public
+
+  SubnetBPrivate:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Select [ 3, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-private-b'
+        - Key: Reach
+          Value: private
 
   ##### PUBLIC #####
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-internet-gateway'
+
+  VPCPublicGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
   RouteTablePublic:
     Type: 'AWS::EC2::RouteTable'
     Properties:
@@ -51,11 +101,71 @@ Resources:
         - Key: Name
           Value: !Sub '${Environment}-public'
 
+  RouteTablePublicInternetRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCPublicGatewayAttachment # AWS::EC2::VPCGatewayAttachment, AWS::EC2::InternetGateway
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
 
-#  RouteTablePublicInternetRoute:
-#    Type: 'AWS::EC2::Route'
-#    DependsOn: VPCGatewayAttachment # AWS::EC2::VPCGatewayAttachment, AWS::EC2::InternetGateway
-#    Properties:
-#      RouteTableId: !Ref RouteTablePublic
-#      DestinationCidrBlock: '0.0.0.0/0'
-#      GatewayId: !Ref InternetGateway
+  RouteTablePublicAssocSubnetPublicA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetAPublic
+
+  RouteTablePublicAssocSubnetPublicB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      SubnetId: !Ref SubnetBPublic
+
+  ##### PRIVATE #####
+  EIPNatGateway:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: !Ref VPC
+
+  NatGatewayABPublic:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIPNatGateway.AllocationId
+      SubnetId: !Ref SubnetAPublic
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-nat-gateway-in-subnet-a'
+
+  RouteTablePrivate:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-private'
+
+  RouteTablePrivateInternetRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref NatGatewayABPublic
+
+  RouteTablePrivateAssocSubnetPrivateA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref SubnetAPrivate
+
+  RouteTablePrivateAssocSubnetPrivateB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTablePrivate
+      SubnetId: !Ref SubnetBPrivate
+
+  HostedZonePrivate:
+    Type: "AWS::Route53::HostedZone"
+    Properties:
+      Name: jpinsolleaunepetitebite.local
+      VPCs:
+        - HostedZoneVPCs
