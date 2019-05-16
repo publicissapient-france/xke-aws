@@ -138,7 +138,7 @@ Resources:
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Select [ 2, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       VpcId: !Ref VPC
       Tags:
         - Key: Name
@@ -151,7 +151,7 @@ Resources:
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Select [ 3, !Cidr [ !GetAtt VPC.CidrBlock, 4, 6 ]]
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       VpcId: !Ref VPC
       Tags:
         - Key: Name
