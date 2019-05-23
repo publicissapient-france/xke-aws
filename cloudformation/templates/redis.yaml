@@ -1,0 +1,109 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Redis stack'
+
+Parameters:
+  Environment:
+    Type: String
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC to launch Redis
+
+  SubnetsIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs to launch Redis
+
+  ## The followings settings are redis specifics :
+  RedisPort:
+    Description: Port used to communicate with Redis nodes
+    Default: 6379
+    Type: Number
+  RedisVersion:
+    Description: Version used for Redis
+    Default: 5.0.4
+    Type: String
+
+  PreferredMaintenanceWindow:
+    Description: Window for maintenance
+    Default: 'fri:02:00-fri:03:00'
+    Type: String
+
+  CacheParameterGroupName:
+    Description: Name of the group for parameters of the cache (usually a default one associated with chosen version)
+    Default: default.redis5.0
+    Type: String
+
+  NbSecondaryNodes:
+    Description: Number of replicas of the first node
+    Default: 0
+    Type: Number
+
+  CacheNodeType:
+    Description: Size of the node
+    Type: String
+    Default: cache.t2.micro
+    AllowedValues: [cache.t2.micro, cache.t2.small]
+
+  AutomaticFailoverEnabled:
+    Description: 'Setting for Automatic Failover (WARNING : some node of size are not compatible with the value true of this property)'
+    Default: false
+    Type: String
+
+  AtRestEncryptionEnabled:
+    Description: 'Setting for encryption of the storage of content of Redis'
+    Default: true
+    Type: String
+
+  CacheSnapshotArn:
+    Type: String
+    Description: 'Arn of snapshot to use if exist'
+    Default: ''
+
+
+Outputs:
+  RedisPrimaryEndPointAddress:
+    Value: !GetAtt RedisReplicationGroup.PrimaryEndPoint.Address
+
+  RedisPrimaryEndPointPort:
+    Value: !GetAtt RedisReplicationGroup.PrimaryEndPoint.Port
+
+  Port:
+    Value: !Ref RedisPort
+
+
+Conditions:
+  UseCacheSnapshot: !Not [!Equals [!Ref CacheSnapshotArn, '']]
+
+
+Resources:
+  # TODO: Create an empty which AWS::EC2::SecurityGroup
+
+  RedisSubnetGroup:
+    Type: "AWS::ElastiCache::SubnetGroup"
+    Properties:
+      CacheSubnetGroupName: !Sub '${Environment}-redis-subnet'
+      Description: !Sub '${Environment} Subnet group for redis'
+      SubnetIds: !Ref SubnetsIds
+
+  RedisReplicationGroup:
+    Type: "AWS::ElastiCache::ReplicationGroup"
+    Properties:
+      AtRestEncryptionEnabled: !Ref AtRestEncryptionEnabled
+      AutomaticFailoverEnabled: !Ref AutomaticFailoverEnabled
+      CacheNodeType: !Ref CacheNodeType
+      CacheParameterGroupName: !Ref CacheParameterGroupName
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      Engine: 'redis'
+      EngineVersion: !Ref RedisVersion
+      Port: !Ref RedisPort
+      PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
+      ReplicasPerNodeGroup: !Ref NbSecondaryNodes
+      ReplicationGroupDescription: !Sub '${Environment}-redis-replication-group'
+#      SecurityGroupIds:
+#        - !Ref RedisSecurityGroup
+      SnapshotArns:
+        Fn::If:
+          - UseCacheSnapshot
+          - - !Ref CacheSnapshotArn
+          - !Ref AWS::NoValue

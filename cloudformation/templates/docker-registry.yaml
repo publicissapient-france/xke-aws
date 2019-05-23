@@ -1,0 +1,15 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Outputs:
+  ClickCountArn:
+    Value: !GetAtt ClickCount.Arn
+
+  ClickCountRepository:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ClickCount}"
+
+Resources:
+
+  ClickCount:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: click-count

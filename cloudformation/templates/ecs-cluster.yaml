@@ -1,0 +1,90 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+
+  SubnetsIds:
+    Type:  List<AWS::EC2::Subnet::Id>
+
+  CertificateArn:
+    Type: String
+    Default: ''
+
+  LoggingBucket:
+    Type: String
+    Default: ''
+
+  HostedZoneName:
+    Type: String
+    Description: 'Name of the Hosted Zone to create a record'
+    Default: ''
+
+
+Outputs:
+
+  ALBSecurityGroup:
+    Description: Load balancer security group id
+    Value: !Ref LoadBalancerSecurityGroup
+
+  ALBListener:
+    Description: Listener HTTP for the ALB
+    Value: !If [isSecure, !Ref ALBListenerSecure, !Ref ALBListener]
+
+  ALBArn:
+    Description: Arn of the loadbalancer
+    Value: !Ref ALB
+
+  ALBDNSName:
+    Description: DNSName of the loadbalancer
+    Value: !GetAtt ALB.DNSName
+
+  ALBName:
+    Description: DNSName of the loadbalancer
+    Value: !GetAtt ALB.LoadBalancerName
+
+#  ClusterName:
+#    Description: ECS cluster name to run all the task and services
+#    Value: !Ref ECSCluster
+
+
+
+Conditions:
+  isLoggingActive: !Not [!Equals ["", !Ref LoggingBucket]]
+  isDNS: !Not [!Equals ["", !Ref HostedZoneName]]
+  isNotSecure: !Equals ["", !Ref CertificateArn]
+  isSecure: !Not [ Condition: isNotSecure ]
+
+
+Resources:
+
+
+#  ALB:
+#    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+#    Properties:
+#      Type: application
+#      Scheme: internet-facing
+#      Name: !Sub "${Environment}-exo2-devops-alb"
+#      SecurityGroups:
+#        - !Ref LoadBalancerSecurityGroup
+#      Subnets: !Ref SubnetsIds
+#      Tags:
+#        - Key: Name
+#          Value: !Sub "${Environment}-exo2-devops-loadbalancer"
+
+
+  ALBDefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${Environment}-exo2-devops-default
+      Port: 6666
+      Protocol: HTTP
+      VpcId: !Ref VPCId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60

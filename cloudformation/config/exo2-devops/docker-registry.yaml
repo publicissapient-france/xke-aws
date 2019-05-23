@@ -1,0 +1,4 @@
+template_path: docker-registry.yaml
+stack_name: "dev-xke-docker-registry"
+parameters:
+

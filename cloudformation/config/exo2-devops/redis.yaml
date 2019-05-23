@@ -1,0 +1,6 @@
+template_path: redis.yaml
+stack_name: "dev-xke-redis"
+parameters:
+  Environment: dev
+  VPCId: !stack_output_external dev-xke-vpc::VPCId
+  SubnetsIds: !stack_output_external dev-xke-vpc::SubnetsPrivate

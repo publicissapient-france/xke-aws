@@ -1,0 +1,6 @@
+template_path: ecs-cluster.yaml
+stack_name: "dev-xke-ecs"
+parameters:
+  Environment: dev
+  VPCId: !stack_output_external dev-xke-vpc::VPCId
+  SubnetsIds: !stack_output_external dev-xke-vpc::SubnetsPublic

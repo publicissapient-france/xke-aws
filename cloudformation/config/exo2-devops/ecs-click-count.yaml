@@ -1,0 +1,14 @@
+template_path: ecs-click-count.yaml
+stack_name: "dev-xke-ecs-click-count"
+parameters:
+  Environment: dev
+  VPCId: !stack_output_external dev-xke-vpc::VPCId
+  SubnetsIds: !stack_output_external dev-xke-vpc::SubnetsPrivate
+  ClusterName: !stack_output_external dev-xke-ecs::ClusterName
+  LoadbalancerListener: !stack_output_external dev-xke-ecs::ALBListener
+  LoadbalancerListenerSG: !stack_output_external dev-xke-ecs::ALBSecurityGroup
+  RedisHost: !stack_output_external dev-xke-redis::RedisPrimaryEndPointAddress
+  RedisPort: !stack_output_external dev-xke-redis::RedisPrimaryEndPointPort
+  RedisSG: !stack_output_external dev-xke-redis::SecurityGroup
+  DockerImage: !stack_output_external dev-xke-docker-registry::ClickCountRepository
+

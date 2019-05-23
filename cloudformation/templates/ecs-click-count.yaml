@@ -1,0 +1,143 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Click count service'
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name
+
+  CloudWatchLogsRetentionInDays:
+    Description: The number of days log events are kept in CloudWatch Logs
+    Type: Number
+    Default: 7
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+
+  ServicePort:
+    Default: 8080
+    Description: Service port
+    Type: Number
+
+  ServiceCpuAllocation:
+    Default: 256
+    Description: Service CPU Allocation
+    Type: Number
+
+  ServiceMemoryAllocation:
+    Default: 512
+    Description: Service Memory Allocation (Mb)
+    Type: Number
+
+  ClusterName:
+    Description: Cluster name
+    Type: String
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+  SubnetsIds:
+    Type:  List<AWS::EC2::Subnet::Id>
+    Description: Subnet id for public loadbalancer
+
+  LoadbalancerListener:
+    Type: String
+    Description: Arn of the loadbalancer listener
+
+  LoadbalancerListenerSG:
+    Type: String
+    Description: SG id of the ALB to autorize the service to be called by ALB
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+    MinValue: 0
+
+  DockerImage:
+    Type: String
+    Description: Url of registry
+  Version:
+    Type: String
+    Description: Docker tag to deploy
+    Default: latest
+
+  RedisHost:
+    Type: String
+  RedisPort:
+    Type: Number
+    Default: 6379
+    MinValue: 1
+  RedisSG:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Elasticsearch security to allow backend access to elasticsearch
+
+Resources:
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${Environment}-exo2-devops-click-count"
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+#      ExecutionRoleArn: !Ref Role
+      Cpu: !Ref ServiceCpuAllocation
+      Memory: !Ref ServiceMemoryAllocation
+      ContainerDefinitions:
+        - Name: click-count
+          Environment:
+            - Name: ENVIRONMENT
+              Value: !Ref Environment
+            - Name: REDIS_HOST
+              Value: !Ref RedisHost
+            - Name: REDIS_PORT
+              Value: !Ref RedisPort
+          Essential: true
+          Image: !Sub "${DockerImage}:${Version}"
+          PortMappings:
+            - ContainerPort: !Ref ServicePort
+          #TODO : LogConfiguration pour envoyer dans cloudwatch log
+
+#  Service:
+#    Type: AWS::ECS::Service
+#    Properties:
+#      Cluster: !Ref ClusterName
+#      ServiceName: !Sub "${Environment}-exo2-devops-click-count"
+#      TaskDefinition: !Ref TaskDefinition
+#      DesiredCount: !Ref DesiredCount
+#      LaunchType: FARGATE
+#      DeploymentConfiguration:
+#        MaximumPercent: 200
+#        MinimumHealthyPercent: 50
+#      LoadBalancers:
+#        - ContainerName: click-count
+#          ContainerPort: !Ref ServicePort
+#          TargetGroupArn: !Ref TargetGroup
+#      NetworkConfiguration:
+#        AwsvpcConfiguration:
+#          AssignPublicIp: DISABLED
+#          Subnets: !Ref SubnetsIds
+#          SecurityGroups:
+#            - !Ref ServiceSecurityGroup
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCId
+      GroupDescription: !Sub "${Environment}-exo2-devops-click-count"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ServicePort
+          ToPort: !Ref ServicePort
+          SourceSecurityGroupId: !Ref LoadbalancerListenerSG
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-exo2-devops-click-count"
+
+  RedisSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RedisSG
+      Description: String
+      FromPort: !Ref RedisPort
+      ToPort: !Ref RedisPort
+      IpProtocol: TCP
+      SourceSecurityGroupId: !Ref ServiceSecurityGroup
