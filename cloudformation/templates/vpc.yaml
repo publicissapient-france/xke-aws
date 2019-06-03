@@ -15,7 +15,7 @@ Outputs:
     Value: !Ref VPC
 
 Resources:
-
+  ##### VPC #####
   VPC:
     Type: 'AWS::EC2::VPC'
     Properties:
@@ -27,6 +27,7 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
+  ##### SUBNET PRIVATE AND PUBLIC #####
   SubnetAPublic:
     Type: 'AWS::EC2::Subnet'
     Properties:
@@ -79,7 +80,7 @@ Resources:
         - Key: Reach
           Value: private
 
-  ##### PUBLIC #####
+  ##### CONFIGURATION PUBLIC SUBNET ROUTE TABLE #####
   InternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
@@ -121,13 +122,13 @@ Resources:
       RouteTableId: !Ref RouteTablePublic
       SubnetId: !Ref SubnetBPublic
 
-  ##### PRIVATE #####
+  ##### CONFIGURATION PRIVATE SUBNET ROUTE TABLE #####
   EIPNatGateway:
     Type: 'AWS::EC2::EIP'
     Properties:
       Domain: !Ref VPC
 
-  NatGatewayABPublic:
+  NatGatewayForPrivateSubnetAB:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt EIPNatGateway.AllocationId
@@ -149,7 +150,7 @@ Resources:
     Properties:
       RouteTableId: !Ref RouteTablePrivate
       DestinationCidrBlock: '0.0.0.0/0'
-      NatGatewayId: !Ref NatGatewayABPublic
+      NatGatewayId: !Ref NatGatewayForPrivateSubnetAB
 
   RouteTablePrivateAssocSubnetPrivateA:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -163,9 +164,35 @@ Resources:
       RouteTableId: !Ref RouteTablePrivate
       SubnetId: !Ref SubnetBPrivate
 
+  ##### CONFIGURATION PRIVATE HOSTED ZONE #####
   HostedZonePrivate:
     Type: "AWS::Route53::HostedZone"
     Properties:
       Name: jpinsolleaunepetitebite.local
       VPCs:
-        - HostedZoneVPCs
+        - VPCId: !Ref VPC
+          VPCRegion: !Ref 'AWS::Region'
+      HostedZoneTags:
+        - Key: Name
+          Value: !Sub '${Environment}-hosted-zone'
+
+  ##### CONFIGURATION PRIVATE HOSTED ZONE #####
+  EndpointS3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - !Ref RouteTablePrivate
+        - !Ref RouteTablePublic
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+
+  EndpointDynamoDB:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      RouteTableIds:
+        - !Ref RouteTablePrivate
+        - !Ref RouteTablePublic
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+      VpcEndpointType: Gateway
