@@ -1,0 +1,172 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  Environment:
+    Type: String
+    Description: Environment name
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+
+  SubnetsIds:
+    Type:  List<AWS::EC2::Subnet::Id>
+
+  WebACLId:
+    Type: String
+    Description: 'Name of the WebACL to associate with the loadbalancer'
+    Default: ''
+
+  CertificateArn:
+    Type: String
+    Default: ''
+
+  LoggingBucket:
+    Type: String
+    Default: ''
+
+  HostedZoneName:
+    Type: String
+    Description: 'Name of the Hosted Zone to create a record'
+    Default: ''
+
+
+Outputs:
+
+  ALBSecurityGroup:
+    Description: Load balancer security group id
+    Value: !Ref LoadBalancerSecurityGroup
+
+  ALBListener:
+    Description: Listener HTTP for the ALB
+    Value: !If [isSecure, !Ref ALBListenerSecure, !Ref ALBListener]
+
+  ALBArn:
+    Description: Arn of the loadbalancer
+    Value: !Ref ALB
+
+  ALBDNSName:
+    Description: DNSName of the loadbalancer
+    Value: !GetAtt ALB.DNSName
+
+  ALBName:
+    Description: DNSName of the loadbalancer
+    Value: !GetAtt ALB.LoadBalancerName
+
+  ClusterName:
+    Description: ECS cluster name to run all the task and services
+    Value: !Ref ECSCluster
+
+
+
+Conditions:
+  isLoggingActive: !Not [!Equals ["", !Ref LoggingBucket]]
+  isWAF: !Not [!Equals ["", !Ref WebACLId]]
+  isDNS: !Not [!Equals ["", !Ref HostedZoneName]]
+  isNotSecure: !Equals ["", !Ref CertificateArn]
+  isSecure: !Not [ Condition: isNotSecure ]
+
+
+Resources:
+  ECSCluster:
+    Type: "AWS::ECS::Cluster"
+    Properties:
+      ClusterName: !Sub "${Environment}-exo2-devops"
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub "${Environment}-ALB"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-exo2-devops-loadbalancer"
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      Name: !Sub "${Environment}-exo2-devops-alb"
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets: !Ref SubnetsIds
+      LoadBalancerAttributes:
+        - Key: access_logs.s3.enabled
+          Value: !If [isLoggingActive, true, false]
+        - !If
+          - isLoggingActive
+          - Key: access_logs.s3.bucket
+            Value: !Ref LoggingBucket
+          - !Ref 'AWS::NoValue'
+        - !If
+          - isLoggingActive
+          - Key: access_logs.s3.prefix
+            Value: "alb"
+          - !Ref 'AWS::NoValue'
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-exo2-devops-loadbalancer"
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: isNotSecure
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBDefaultTargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+  ALBListenerSecure:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Condition: isSecure
+    Properties:
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBDefaultTargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 443
+      Protocol: HTTPS
+
+  ALBDefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${Environment}-exo2-devops-default
+      Port: 6666
+      Protocol: HTTP
+      VpcId: !Ref VPCId
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 60
+
+  WAFAssociation:
+    Type: "AWS::WAFRegional::WebACLAssociation"
+    Condition: isWAF
+    Properties:
+      ResourceArn: !Ref ALB
+      WebACLId: !Ref WebACLId
+
+  ALBRecordSet:
+    Type: AWS::Route53::RecordSet
+    Condition: isDNS
+    Properties:
+      HostedZoneName: !Sub '${HostedZoneName}.'
+      Comment: DNS of the Application Load Balancer for the ECS cluster
+      Name: !Sub 'alb.${HostedZoneName}'
+      Type: A
+      AliasTarget:
+        HostedZoneId: !GetAtt ALB.CanonicalHostedZoneID
+        DNSName: !GetAtt ALB.DNSName

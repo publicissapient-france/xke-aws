@@ -81,7 +81,7 @@ Le template Cloudformation est quasiment fini, il reste à créer le security gr
 Ce security group doit être vide, c'est à dire pas d'ingress ni d'egress.
  
 ```bash
-AWS_PROFILE=<profile> sceptre launch -y exo2-devops/elasticache.yaml
+AWS_PROFILE=<profile> sceptre launch -y exo2-devops/redis.yaml
 ```
 
 
